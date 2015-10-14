@@ -5,6 +5,7 @@
 #include <sfz/Math.hpp>
 #include <sfz/Screens.hpp>
 
+#include <sfz/gl/PostProcessQuad.hpp>
 #include <sfz/gl/Program.hpp>
 
 namespace rmt {
@@ -34,6 +35,7 @@ public:
 
 private:
 	gl::Program mProgram;
+	gl::PostProcessQuad mPostProcessQuad;
 };
 
 } // namespace rmt

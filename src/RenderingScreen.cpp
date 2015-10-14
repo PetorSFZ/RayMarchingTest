@@ -11,6 +11,12 @@ RenderingScreen::RenderingScreen() noexcept
 
 UpdateOp RenderingScreen::update(UpdateState& state)
 {
+	
+	return sfz::SCREEN_NO_OP;
+}
+
+void RenderingScreen::render(UpdateState& state)
+{
 	// Enable depth testing
 	glDepthFunc(GL_LESS);
 	glEnable(GL_DEPTH_TEST);
@@ -25,11 +31,6 @@ UpdateOp RenderingScreen::update(UpdateState& state)
 	// Clearing screen
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-}
-
-void RenderingScreen::render(UpdateState& state)
-{
-
 }
 
 } // namespace rmt

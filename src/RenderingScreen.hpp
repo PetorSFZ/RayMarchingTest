@@ -24,6 +24,7 @@ public:
 	// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
 	RenderingScreen() noexcept;
+	virtual ~RenderingScreen() = default;
 
 	// Overriden screen methods
 	// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *

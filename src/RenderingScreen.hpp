@@ -38,6 +38,9 @@ private:
 	gl::Program mProgram;
 	gl::PostProcessQuad mPostProcessQuad;
 	gl::FontRenderer mFont;
+
+	vec3 mCamPos, mCamDir, mCamUp;
+	float mCamVertFOV = 60.0f;
 };
 
 } // namespace rmt

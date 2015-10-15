@@ -2,6 +2,7 @@
 
 #include <cstdio>
 
+#include <sfz/Math.hpp>
 #include <sfz/gl/OpenGL.hpp>
 #include <sfz/util/IO.hpp>
 
@@ -45,6 +46,13 @@ void RenderingScreen::render(UpdateState& state)
 	// Render post process shader
 	glUseProgram(mProgram.handle());
 	glViewport(0, 0, state.window.drawableWidth(), state.window.drawableHeight());
+	
+	const float yFOV = 60.0f * sfz::DEG_TO_RAD();
+	vec2 camProjRect;
+	camProjRect.y = 2.0f * std::tan(yFOV/2.0f);
+	camProjRect.x = camProjRect.y * ((float)state.window.drawableWidth()/(float)state.window.drawableHeight());
+	gl::setUniform(mProgram, "uCamProjRect", camProjRect);
+	
 	mPostProcessQuad.render();
 
 

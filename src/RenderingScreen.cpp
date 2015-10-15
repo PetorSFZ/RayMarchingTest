@@ -1,5 +1,7 @@
 #include "RenderingScreen.hpp"
 
+#include <cstdio>
+
 #include <sfz/gl/OpenGL.hpp>
 #include <sfz/util/IO.hpp>
 
@@ -8,6 +10,8 @@
 namespace rmt {
 
 RenderingScreen::RenderingScreen() noexcept
+:
+	mFont{sfz::basePath() + "assets/fonts/SaniTrixieSans.ttf", 4096, 4096, 128, 1024}
 {
 	mProgram = gl::Program::postProcessFromFile((sfz::basePath() + "assets/shaders/shader.frag").c_str());
 }
@@ -44,6 +48,25 @@ void RenderingScreen::render(UpdateState& state)
 	mPostProcessQuad.render();
 
 
+	mFont.verticalAlign(gl::VerticalAlign::BOTTOM);
+
+	char deltaBuffer[100];
+	std::snprintf(deltaBuffer, 100, "Delta: %.1fms", (state.delta*1000.0f));
+	char fpsBuffer[100];
+	std::snprintf(fpsBuffer, 100, "FPS: %.0f", (1.0f/state.delta));
+
+	float fontSize = state.window.drawableHeight()/24.0f;
+	float offset = fontSize*0.04f;
+
+	mFont.begin(state.window.drawableDimensions()/2.0f, state.window.drawableDimensions());
+	mFont.write(vec2{offset, fontSize*1.05f - offset}, fontSize, deltaBuffer);
+	mFont.write(vec2{offset, -offset}, fontSize, fpsBuffer);
+	mFont.end(0, state.window.drawableDimensions(), sfz::vec4{0.0f, 0.0f, 0.0f, 1.0f});
+
+	mFont.begin(state.window.drawableDimensions()/2.0f, state.window.drawableDimensions());
+	mFont.write(vec2{0.0f, fontSize*1.05f}, fontSize, deltaBuffer);
+	mFont.write(vec2{0.0f, 0.0f}, fontSize, fpsBuffer);
+	mFont.end(0, state.window.drawableDimensions(), sfz::vec4{1.0f, 1.0f, 1.0f, 1.0f});
 }
 
 } // namespace rmt

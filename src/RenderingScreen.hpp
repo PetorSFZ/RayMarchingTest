@@ -5,6 +5,7 @@
 #include <sfz/Math.hpp>
 #include <sfz/Screens.hpp>
 
+#include <sfz/gl/FontRenderer.hpp>
 #include <sfz/gl/PostProcessQuad.hpp>
 #include <sfz/gl/Program.hpp>
 
@@ -36,6 +37,7 @@ public:
 private:
 	gl::Program mProgram;
 	gl::PostProcessQuad mPostProcessQuad;
+	gl::FontRenderer mFont;
 };
 
 } // namespace rmt

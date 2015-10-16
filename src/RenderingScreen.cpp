@@ -16,7 +16,7 @@ RenderingScreen::RenderingScreen() noexcept
 {
 	mProgram = gl::Program::postProcessFromFile((sfz::basePath() + "assets/shaders/shader.frag").c_str());
 
-	mCamPos = vec3(0.0f, 0.0f, -2.0f);
+	mCamPos = vec3(0.0f, 1.0f, -2.0f);
 	mCamDir = vec3(0.0f, 0.0f, 1.0f);
 	mCamUp = vec3(0.0f, 1.0f, 0.0f);
 }
@@ -26,6 +26,12 @@ UpdateOp RenderingScreen::update(UpdateState& state)
 	GlobalConfig& cfg = GlobalConfig::INSTANCE();
 
 	if (cfg.continuousShaderReload) mProgram.reload();
+
+	//static size_t lastSize = 0;
+	//if (cfg.continuousShaderReload && sfz::sizeofFile("assets/shaders/shader.frag") != lastSize) {
+	//	mProgram.reload();
+	//	lastSize = sfz::sizeofFile("assets/shaders/shader.frag");
+	//}
 
 	for (auto& event : state.events) {
 		switch (event.type) {

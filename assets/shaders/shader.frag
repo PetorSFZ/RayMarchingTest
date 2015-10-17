@@ -1,7 +1,5 @@
 #version 330
 
-precision highp float; // required by GLSL spec Sect 4.5.3
-
 //#define INTENSITY_RENDERING
 
 // Input & Uniforms
@@ -21,10 +19,9 @@ out vec4 outFragColor;
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
 const float EPS = 0.005;
-const float SHADOW_BIAS = EPS*10;
-const float MAX_STEPS = 500;
+const int MAX_STEPS = 500;
 const float MAX_DIST = 50.0;
-const vec3 BG_COLOR = vec3(1.0, 1.0, 1.0);
+const vec3 BG_COLOR = vec3(0.85, 0.85, 0.9);
 
 // Lights
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -99,10 +96,9 @@ float sceneDistance(vec3 p)
 	dist = opUnion(dist, sdTorus(p - vec3(1,0,0), vec2(0.3, 0.3)));
 	dist = opUnion(dist, sdTorus(p, vec2(0.2, 0.2)));
 
-	dist = opUnion(dist, opSubtract(sdBox(p,vec3(3,3,3)), sdSphere(p,4)));
+	dist = opUnion(dist, opSubtract(sdBox(p,vec3(3,3,3)), sdSphere(p,3.8)));
 
 	return dist;
-	//return sdSphere(p, 0.5);ee
 }
 
 vec3 calculateNormal(vec3 p)
@@ -132,45 +128,37 @@ float march(vec3 origin, vec3 dir, out int numSteps)
 
 float shadowFactor(vec3 origin, vec3 dir)
 {
-	/*const float SHADOW_MAX_DIST = MAX_DIST*0.25;
+	const float SHADOW_BIAS = EPS*10;
+	const int SHADOW_MAX_STEPS = MAX_STEPS;
+	const float SHADOW_MAX_DIST = MAX_DIST;
 	const float SHADOW_STEP_SIZE = 0.025;
-	const float k = 2.0;
+	const float SHADOW_SOFT_FACTOR = 1000.0f;
 
 	float res = 1.0;
-	float dist = 0.0;
-	while (dist < SHADOW_MAX_DIST) {
+	float dist = SHADOW_BIAS;//sceneDistance(origin);
+	for (int numSteps = 0; numSteps < SHADOW_MAX_STEPS; ++numSteps) {
 		float sceneDist = sceneDistance(origin + dir*dist);
-		if (sceneDist < EPS) return 0;
-		res = min(res, k*sceneDist/dist);
+		if (sceneDist < EPS) return 0.0;
 		dist += SHADOW_STEP_SIZE;
-	}
-	return res;*/
-
-	const float K = 16.0;
-	const float MAX_STEP_SIZE = 0.025;
-
-	float res = 1.0;
-	float dist = 0;
-	for (int numSteps = 0; numSteps < MAX_STEPS; ++numSteps) {
-		float sceneDist = sceneDistance(origin + dir*dist);
-		if (sceneDist < EPS) return 0;
-		float distToMove = min(MAX_STEP_SIZE, sceneDist);
-		dist += distToMove;
-		res = min(res, K*sceneDist/dist);
-		if (dist > MAX_DIST) break;
+		res = min(res, SHADOW_SOFT_FACTOR*sceneDist/dist);
+		if (dist > SHADOW_MAX_DIST) break;
 	}
 	return res;
+}
 
-	/*float dist = 0;
-	for (int numSteps = 0; numSteps < MAX_STEPS; ++numSteps) {
-		float sceneDist = sceneDistance(origin + dir*dist);
-		if (sceneDist < EPS) {
-			return 0;
-		}
-		dist += sceneDist;
-		if (dist > MAX_DIST) break;
+float ambientOcclusionFactor(vec3 p, vec3 normal)
+{
+	// TODO: Can be further optimized.
+
+	const float AO_K = 8.0;
+	const float AO_STEP_SIZE = 0.075;
+	float res = 1.0;
+	float dist = 0.0;
+	for (int i = 1; i <= 5; ++i) {
+		dist += AO_STEP_SIZE;
+		res -= (AO_K / pow(2,i)) * (dist - sceneDistance(p + normal*dist));
 	}
-	return 1;*/
+	return res;
 }
 
 vec4 intensityColor(int numSteps)
@@ -194,10 +182,10 @@ vec4 shade(vec3 p)
 	vec3 normal = calculateNormal(p);
 	vec3 toLight = normalize(-globalLightDir);
 	int numSteps = 0;
-	float shadow = shadowFactor(p + toLight*SHADOW_BIAS, toLight);
-	//float shadow = shadowFactor(p, toLight);
+	float shadow = shadowFactor(p, toLight);
+	float ao = ambientOcclusionFactor(p, normal);
 
-	vec3 diffuse = shadow * dot(-globalLightDir, normal)*vec3(1,0,0);
+	vec3 diffuse = ao * shadow * dot(-globalLightDir, normal)*vec3(0.75, 0.6, 0.6);
 	return vec4(ambientLight + diffuse, 1);
 }
 

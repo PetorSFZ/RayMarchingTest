@@ -38,6 +38,11 @@ UpdateOp RenderingScreen::update(UpdateState& state)
 		case SDL_KEYDOWN:
 			switch (event.key.keysym.sym) {
 			case SDLK_ESCAPE: return sfz::SCREEN_QUIT;
+
+			case SDLK_F1:
+				mIntensityRendering = !mIntensityRendering;
+				break;
+
 			case 'w':
 			case 'W':
 				mCamPos += (mCamDir * 25.0f * state.delta);
@@ -164,7 +169,9 @@ void RenderingScreen::render(UpdateState& state)
 	// Render post process shader
 	glUseProgram(mProgram.handle());
 	glViewport(0, 0, state.window.drawableWidth(), state.window.drawableHeight());
-	
+
+	gl::setUniform(mProgram, "uIntensityRendering", mIntensityRendering ? 1 : 0);
+
 	gl::setUniform(mProgram, "uCamPos", mCamPos);
 	gl::setUniform(mProgram, "uCamDir", mCamDir);
 	gl::setUniform(mProgram, "uCamUp", mCamUp);

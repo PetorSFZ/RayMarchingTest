@@ -1,11 +1,11 @@
 #version 330
 
-//#define INTENSITY_RENDERING
-
 // Input & Uniforms
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
 in vec2 uvCoord;
+
+uniform int uIntensityRendering;
 
 uniform vec3 uCamPos;
 uniform vec3 uCamDir;
@@ -19,8 +19,8 @@ out vec4 outFragColor;
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
 const float EPS = 0.005;
-const int MAX_STEPS = 500;
-const float MAX_DIST = 50.0;
+const int MAX_STEPS = 300;
+const float MAX_DIST = 60.0;
 const vec3 BG_COLOR = vec3(0.85, 0.85, 0.9);
 
 // Lights
@@ -91,12 +91,12 @@ float opIntersect(float d1, float d2)
 
 float sceneDistance(vec3 p)
 {
-	float dist = sdPlane(p, vec4(0,1,0,1)); // Ground
+	float dist = sdPlane(p, vec4(0,1,0,0)); // Ground
 
-	dist = opUnion(dist, sdTorus(p - vec3(1,0,0), vec2(0.3, 0.3)));
-	dist = opUnion(dist, sdTorus(p, vec2(0.2, 0.2)));
+	//dist = opUnion(dist, sdTorus(p - vec3(1,1,0), vec2(0.3, 0.3)));
+	//dist = opUnion(dist, sdTorus(p, vec2(0.2, 0.2)));
 
-	dist = opUnion(dist, opSubtract(sdBox(p,vec3(3,3,3)), sdSphere(p,3.8)));
+	dist = opUnion(dist, opSubtract(sdBox(p-vec3(0,3,0),vec3(3,3,3)), sdSphere(p-vec3(0,3,0),3.8)));
 
 	return dist;
 }
@@ -182,7 +182,7 @@ vec4 shade(vec3 p)
 	vec3 normal = calculateNormal(p);
 	vec3 toLight = normalize(-globalLightDir);
 	int numSteps = 0;
-	float shadow = shadowFactor(p, toLight);
+	float shadow = 1;//shadowFactor(p, toLight);
 	float ao = ambientOcclusionFactor(p, normal);
 
 	vec3 diffuse = ao * shadow * dot(-globalLightDir, normal)*vec3(0.75, 0.6, 0.6);
@@ -203,17 +203,17 @@ void main()
 	int numSteps = 0;
 	float dist = march(uCamPos, rayDir, numSteps);
 	if (dist < 0) {
-#ifdef INTENSITY_RENDERING
-		outFragColor = intensityColor(numSteps);
-#else
-		outFragColor = vec4(BG_COLOR,1);
-#endif	
+		if (uIntensityRendering != 0) {
+			outFragColor = intensityColor(numSteps);
+		} else {
+			outFragColor = vec4(BG_COLOR,1);
+		}
 		return;
 	}
 
-#ifdef INTENSITY_RENDERING
-	outFragColor = intensityColor(numSteps);
-#else
-	outFragColor = shade(uCamPos + rayDir*dist);
-#endif
+	if (uIntensityRendering != 0) {
+		outFragColor = intensityColor(numSteps);
+	} else {
+		outFragColor = shade(uCamPos + rayDir*dist);
+	}
 }

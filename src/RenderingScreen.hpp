@@ -39,6 +39,8 @@ private:
 	gl::PostProcessQuad mPostProcessQuad;
 	gl::FontRenderer mFont;
 
+	bool mIntensityRendering = false;
+
 	vec3 mCamPos, mCamDir, mCamUp;
 	float mCamVertFOV = 60.0f;
 };

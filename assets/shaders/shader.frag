@@ -6,6 +6,7 @@
 in vec2 uvCoord;
 
 uniform int uIntensityRendering;
+uniform float uTime;
 
 uniform vec3 uCamPos;
 uniform vec3 uCamDir;
@@ -22,20 +23,6 @@ const float EPS = 0.005;
 const int MAX_STEPS = 300;
 const float MAX_DIST = 60.0;
 const vec3 BG_COLOR = vec3(0.85, 0.85, 0.9);
-
-// Lights
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
-
-vec3 ambientLight = vec3(0.15);
-vec3 globalLightDir = normalize(vec3(1, -1, -0.5));
-vec3 globalLightColor = vec3(1, 1, 1);
-
-const int NUM_LIGHT_SOURCES = 3;
-vec3 lightPos[NUM_LIGHT_SOURCES];
-vec3 lightDirs[NUM_LIGHT_SOURCES];
-vec3 lightColors[NUM_LIGHT_SOURCES];
-float lightIntensity[NUM_LIGHT_SOURCES];
-
 
 // Primitives (from Iñigo Quílez)
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -86,20 +73,74 @@ float opIntersect(float d1, float d2)
 	return max(d1,d2);
 }
 
-// General raymarch functions
+// Scene defintion
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+
+float ground(vec3 p)
+{
+	return sdPlane(p, vec4(0,1,0,0));
+}
+
+float sphereHoledCube(vec3 p)
+{
+	return opSubtract(sdBox(p-vec3(0,3,0),vec3(3,3,3)), sdSphere(p-vec3(0,3,0),3.8));
+}
+
+float blocks(vec3 p)
+{
+	float cosF = cos(uTime*0.5);
+	float sinF = sin(uTime*0.5);
+	vec3 c = vec3(sinF*15,0,cosF*15);
+	vec3 q = mod(p,c)-0.5*c;
+	//return sdBox(q-vec3(0,0.5,0), vec3(2, 10, 2));
+	return sdBox(q-vec3(0,0.5,0), max(abs(vec3(cosF*2, 10, sinF*2)),vec3(1)));
+}
 
 float sceneDistance(vec3 p)
 {
-	float dist = sdPlane(p, vec4(0,1,0,0)); // Ground
-
-	//dist = opUnion(dist, sdTorus(p - vec3(1,1,0), vec2(0.3, 0.3)));
-	//dist = opUnion(dist, sdTorus(p, vec2(0.2, 0.2)));
-
-	dist = opUnion(dist, opSubtract(sdBox(p-vec3(0,3,0),vec3(3,3,3)), sdSphere(p-vec3(0,3,0),3.8)));
-
+	float dist = ground(p);
+	dist = opUnion(dist, sphereHoledCube(p));
+	dist = opUnion(dist, blocks(p));
 	return dist;
 }
+
+struct Material {
+	vec3 diffuseColor, specularColor;
+	float shininess;
+};
+
+Material getMaterial(vec3 p)
+{
+	if (ground(p) < EPS) {
+		return Material(vec3(0.4,1,0), vec3(0.5), 4);
+	}
+
+	if (sphereHoledCube(p) < EPS) {
+		return Material(vec3(0.3,0.3,1.0), vec3(1), 12);
+	}
+
+	// Default material
+	return Material(vec3(0.75), vec3(0.75), 6);
+}
+
+vec3 ambientLight = vec3(0.15);
+vec3 globalLightDir = normalize(vec3(1, -1, -0.5));
+vec3 globalLightColor = vec3(1, 1, 1);
+
+struct SpotLight {
+	vec3 pos, dir, color;
+	float reach;	
+};
+
+const int NUM_SPOT_LIGHTS = 1;
+SpotLight spotLights[NUM_SPOT_LIGHTS] = SpotLight[NUM_SPOT_LIGHTS](
+	SpotLight(vec3(0,4,0), normalize(vec3(0,-1,0)), vec3(1,0,0), 2.0)
+	//SpotLight(vec3(6,0.25,-4), normalize(vec3(0,-1,0)), vec3(1,0,0), 2.0)
+);
+
+
+// General raymarch functions
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 
 vec3 calculateNormal(vec3 p)
 {
@@ -129,10 +170,10 @@ float march(vec3 origin, vec3 dir, out int numSteps)
 float shadowFactor(vec3 origin, vec3 dir)
 {
 	const float SHADOW_BIAS = EPS*10;
-	const int SHADOW_MAX_STEPS = MAX_STEPS;
+	const int SHADOW_MAX_STEPS = MAX_STEPS*5;
 	const float SHADOW_MAX_DIST = MAX_DIST;
-	const float SHADOW_STEP_SIZE = 0.025;
-	const float SHADOW_SOFT_FACTOR = 1000.0f;
+	const float SHADOW_STEP_SIZE = 0.01;
+	const float SHADOW_SOFT_FACTOR = 32.0f;
 
 	float res = 1.0;
 	float dist = SHADOW_BIAS;//sceneDistance(origin);
@@ -177,16 +218,68 @@ vec4 intensityColor(int numSteps)
 	}
 }
 
-vec4 shade(vec3 p)
+vec3 spotLightContribution(vec3 p, vec3 normal, Material material, vec3 toCam, int i)
+{
+	SpotLight light = spotLights[i];
+
+	vec3 toLight = normalize(light.pos - p);
+
+	// TODO: Implement proper shadows
+	float shadow = dot(-light.dir, toLight);
+
+	vec3 specularMaterial = material.specularColor;
+	float diffuseIntensity = max(dot(toLight, normal), 0.0);
+	float specularIntensity = 0.0;
+	if (diffuseIntensity > 0.0) {
+		vec3 halfVec = normalize(toLight + toCam);
+		float specularAngle = max(dot(normal, halfVec), 0.0);
+		specularIntensity = pow(specularAngle, material.shininess);
+
+		// Fresnel effect
+		float fresnelBase = max(1.0 - max(dot(normal, toCam), 0.0), 0.0);
+		float fresnel = pow(fresnelBase, 5.0);
+		specularMaterial = specularMaterial + (1.0-specularMaterial) * fresnel;
+	}
+	vec3 diffuse = diffuseIntensity * light.color * material.diffuseColor;
+	vec3 specular = specularIntensity * light.color * specularMaterial;
+
+	return shadow * (diffuse + specular);
+}
+
+vec4 shade(vec3 p, vec3 toCam)
 {
 	vec3 normal = calculateNormal(p);
-	vec3 toLight = normalize(-globalLightDir);
+	Material material = getMaterial(p);
+
+	vec3 spotLightDiffuseSpecular = vec3(0);
+	float amountPerSpotLight = 1.0f/float(NUM_SPOT_LIGHTS);
+	for (int i = 0; i < NUM_SPOT_LIGHTS; ++i) {
+		spotLightDiffuseSpecular += (spotLightContribution(p, normal, material, toCam, i)*amountPerSpotLight);
+	}
+
+	//vec3 toLight = normalize(-globalLightDir);
+	vec3 toLight = normalize(vec3(cos(uTime),1,sin(uTime)));
 	int numSteps = 0;
-	float shadow = 1;//shadowFactor(p, toLight);
+	float shadow = shadowFactor(p, toLight);
 	float ao = ambientOcclusionFactor(p, normal);
 
-	vec3 diffuse = ao * shadow * dot(-globalLightDir, normal)*vec3(0.75, 0.6, 0.6);
-	return vec4(ambientLight + diffuse, 1);
+	vec3 specularMaterial = material.specularColor;
+	float diffuseIntensity = max(dot(toLight, normal), 0.0);
+	float specularIntensity = 0.0;
+	if (diffuseIntensity > 0.0) {
+		vec3 halfVec = normalize(toLight + toCam);
+		float specularAngle = max(dot(normal, halfVec), 0.0);
+		specularIntensity = pow(specularAngle, material.shininess);
+
+		// Fresnel effect
+		float fresnelBase = max(1.0 - max(dot(normal, toCam), 0.0), 0.0);
+		float fresnel = pow(fresnelBase, 5.0);
+		specularMaterial = specularMaterial + (1.0-specularMaterial) * fresnel;
+	}
+	vec3 diffuse = shadow * diffuseIntensity * globalLightColor * material.diffuseColor;
+	vec3 specular = shadow * specularIntensity * globalLightColor * specularMaterial;
+
+	return vec4((ao * ambientLight) + diffuse + specular + spotLightDiffuseSpecular, 1);
 }
 
 // Main
@@ -214,6 +307,6 @@ void main()
 	if (uIntensityRendering != 0) {
 		outFragColor = intensityColor(numSteps);
 	} else {
-		outFragColor = shade(uCamPos + rayDir*dist);
+		outFragColor = shade(uCamPos + rayDir*dist, -rayDir);
 	}
 }

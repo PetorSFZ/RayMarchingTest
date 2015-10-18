@@ -40,6 +40,7 @@ private:
 	gl::FontRenderer mFont;
 
 	bool mIntensityRendering = false;
+	float mTime = 0.0f;
 
 	vec3 mCamPos, mCamDir, mCamUp;
 	float mCamVertFOV = 60.0f;

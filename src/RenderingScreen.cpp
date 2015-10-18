@@ -23,6 +23,8 @@ RenderingScreen::RenderingScreen() noexcept
 
 UpdateOp RenderingScreen::update(UpdateState& state)
 {
+	mTime = std::fmod(mTime + state.delta, 3600.0f); // Resets every hour
+
 	GlobalConfig& cfg = GlobalConfig::INSTANCE();
 
 	if (cfg.continuousShaderReload) mProgram.reload();
@@ -171,6 +173,7 @@ void RenderingScreen::render(UpdateState& state)
 	glViewport(0, 0, state.window.drawableWidth(), state.window.drawableHeight());
 
 	gl::setUniform(mProgram, "uIntensityRendering", mIntensityRendering ? 1 : 0);
+	gl::setUniform(mProgram, "uTime", mTime);
 
 	gl::setUniform(mProgram, "uCamPos", mCamPos);
 	gl::setUniform(mProgram, "uCamDir", mCamDir);
